@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import json
 from dataclasses import dataclass
+import hashlib
+import json as _json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,8 +21,13 @@ class ScreenTimeEvent:
     source: str = "apple_screentime_export"
 
     @property
+    def event_hash(self) -> str:
+        payload = {"start": self.start.isoformat(), "duration_seconds": self.duration_seconds, "app": self.app, "device": self.device, "category": self.category}
+        return hashlib.sha256(_json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    @property
     def data(self) -> dict:
-        data = {"app": self.app, "device": self.device, "source": self.source}
+        data = {"app": self.app, "device": self.device, "source": self.source, "event_hash": self.event_hash}
         if self.category:
             data["category"] = self.category
         return data
@@ -91,6 +98,8 @@ def parse_csv(path: str | Path) -> list[ScreenTimeEvent]:
                 duration = max(0.0, (parse_datetime(end_raw) - start).total_seconds())
             else:
                 raise ValueError(f"row needs duration or end time: {row!r}")
+            if duration <= 0:
+                raise ValueError(f"duration must be positive for row: {row!r}")
             events.append(ScreenTimeEvent(start=start, duration_seconds=duration, app=app, device=_first(row, ("device",), "iPhone"), category=_first(row, ("category",), "") or None))
     return events
 
@@ -102,7 +111,13 @@ def parse_json(path: str | Path) -> list[ScreenTimeEvent]:
     for row in rows:
         start = parse_datetime(str(row.get("start") or row.get("timestamp") or row.get("date")))
         duration = row.get("duration_seconds", row.get("duration", row.get("seconds")))
-        events.append(ScreenTimeEvent(start=start, duration_seconds=parse_duration(duration), app=str(row.get("app") or row.get("name") or row.get("bundle_id")), device=str(row.get("device") or "iPhone"), category=row.get("category")))
+        app = row.get("app") or row.get("name") or row.get("bundle_id")
+        if not app:
+            raise ValueError(f"JSON row needs app/name/bundle_id: {row!r}")
+        parsed_duration = parse_duration(duration)
+        if parsed_duration <= 0:
+            raise ValueError(f"duration must be positive for row: {row!r}")
+        events.append(ScreenTimeEvent(start=start, duration_seconds=parsed_duration, app=str(app), device=str(row.get("device") or "iPhone"), category=row.get("category")))
     return events
 
 

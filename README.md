@@ -97,7 +97,7 @@ A top-level JSON array also works.
 ## Install
 
 ```bash
-git clone https://github.com/<your-user>/aw-importer-apple-screentime.git
+git clone https://github.com/Martin-Hausleitner/aw-importer-apple-screentime.git
 cd aw-importer-apple-screentime
 python3 -m venv .venv
 . .venv/bin/activate
@@ -179,6 +179,10 @@ PY
 4. Import.
 5. Open ActivityWatch and inspect the new iPhone Screen Time bucket.
 
+## Idempotency
+
+The CLI can add a stable `event_hash` to every imported event. The stack-level hourly wrapper also tracks imported files by SHA-256 so unchanged exports are not imported repeatedly. If a vendor export is edited and contains overlapping rows, prefer re-exporting to a new file and reviewing with `--dry-run` first.
+
 ## Privacy
 
 - No cloud service is required by this importer.
@@ -206,4 +210,4 @@ ruff check .
 
 ## License
 
-Choose and add a license before wider public release.
+MIT
