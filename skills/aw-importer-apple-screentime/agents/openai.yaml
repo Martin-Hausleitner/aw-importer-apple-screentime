@@ -1,0 +1,4 @@
+interface:
+  display_name: "AW Apple Screen Time Importer"
+  short_description: "Operate Apple Screen Time ActivityWatch imports."
+  default_prompt: "Use the AW Apple Screen Time Importer skill to parse exports, import into ActivityWatch, or maintain the repository."

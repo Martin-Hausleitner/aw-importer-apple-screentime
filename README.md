@@ -143,6 +143,15 @@ aw-importer-apple-screentime import-file screen-time.csv \
 
 ## For AI agents
 
+Start with the repo-local agent docs:
+
+```text
+AGENTS.md
+skills/aw-importer-apple-screentime/SKILL.md
+```
+
+The skill is the canonical runbook for dry-runs, ActivityWatch imports, bucket verification, privacy handling, and repository maintenance.
+
 Safe workflow:
 
 - Never read private Screen Time source files aloud unless asked.
