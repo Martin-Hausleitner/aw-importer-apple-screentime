@@ -44,7 +44,8 @@ Event data:
   "app": "Signal",
   "device": "iPhone",
   "category": "Social",
-  "source": "apple_screentime_export"
+  "source": "apple_screentime_export",
+  "event_hash": "..."
 }
 ```
 
@@ -52,9 +53,9 @@ Event data:
 
 Required:
 
-- `app` or `application` or `name` or `bundle_id`
+- `app` or `application` or `name` or `display_name` or `bundle_id`
 - `start` or `start_time` or `timestamp` or `date`
-- either `duration_seconds` / `duration` / `seconds` or `end` / `end_time`
+- either `duration_seconds` / `duration` / `seconds` / `total_seconds` or `end` / `end_time`
 
 Optional:
 
@@ -93,6 +94,10 @@ Duration can also be human-readable:
 ```
 
 A top-level JSON array also works.
+
+JSON accepted fields are narrower than CSV: app name can be `app`, `name`, or `bundle_id`; start time can be `start`, `timestamp`, or `date`; duration can be `duration_seconds`, `duration`, or `seconds`. JSON does not currently support `end`/`end_time`.
+
+Use timezone-qualified timestamps where possible. Naive timestamps are interpreted as UTC. CSV rows without app or start are skipped; malformed duration/end values raise errors. JSON rows are stricter and missing required fields raise errors.
 
 ## Install
 
@@ -157,8 +162,9 @@ Safe workflow:
 - Never read private Screen Time source files aloud unless asked.
 - Parse with `--dry-run` first.
 - Report only totals, top apps, and bucket ids by default.
+- Dry-run output includes up to 10 raw app/device preview rows; do not paste it into chats, issues, logs, or commits unless the user explicitly approves.
 - Do not commit exports; keep them in `exports/` or outside the repo.
-- Verify ActivityWatch buckets after import.
+- Verify ActivityWatch buckets and sample imported events after import.
 
 Agent checklist:
 
@@ -180,6 +186,8 @@ for bucket_id, meta in sorted(buckets.items()):
 PY
 ```
 
+After import, fetch events from the target bucket for the imported date range and verify the count is plausible, timestamps match the dry-run range, durations are positive, and event data includes `app`, `device`, `source=apple_screentime_export`, and `event_hash`.
+
 ## For normal humans
 
 1. Export or prepare a CSV/JSON with app, start time, and duration.
@@ -190,7 +198,7 @@ PY
 
 ## Idempotency
 
-The CLI can add a stable `event_hash` to every imported event. The stack-level hourly wrapper also tracks imported files by SHA-256 so unchanged exports are not imported repeatedly. If a vendor export is edited and contains overlapping rows, prefer re-exporting to a new file and reviewing with `--dry-run` first.
+The CLI adds a stable `event_hash` to every imported event, but it does not deduplicate before inserting. Re-running the same overlapping file posts duplicate ActivityWatch events. Use a wrapper or manual verification before re-importing overlapping files; the stack-level hourly wrapper tracks imported files by SHA-256 so unchanged exports are not imported repeatedly. If a vendor export is edited and contains overlapping rows, prefer re-exporting to a new file and reviewing with `--dry-run` first.
 
 ## Privacy
 

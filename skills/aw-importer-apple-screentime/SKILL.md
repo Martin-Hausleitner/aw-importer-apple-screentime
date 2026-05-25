@@ -32,6 +32,7 @@ curl -fsS http://127.0.0.1:5600/api/0/info
 - Do not commit Screen Time exports, ActivityWatch dumps, or personal app-usage summaries.
 - Keep raw exports in `exports/` or outside the repo. Commit only synthetic fixtures.
 - Report totals, date ranges, top apps, and bucket ids by default. Do not quote raw private rows unless asked.
+- Dry-run output includes up to 10 raw app/device preview rows. Do not paste this output into chats, issues, logs, or commits unless the user explicitly approves.
 
 ## Input Formats
 
@@ -46,9 +47,11 @@ Optional CSV columns:
 - `device`
 - `category`
 
-JSON can be either a top-level array or an object with an `events` array. Each event needs app/name/bundle id, start/timestamp/date, and duration.
+JSON can be either a top-level array or an object with an `events` array. JSON accepted fields are narrower than CSV: app name can be `app`, `name`, or `bundle_id`; start time can be `start`, `timestamp`, or `date`; duration can be `duration_seconds`, `duration`, or `seconds`. JSON does not currently support `end`/`end_time`.
 
 Duration values can be numeric seconds or text such as `45 min`, `1 h 30 min`, or `30`.
+
+Use timezone-qualified timestamps where possible. Naive timestamps are interpreted as UTC. CSV rows without app or start are skipped; malformed duration/end values raise errors. JSON rows are stricter and missing required fields raise errors.
 
 ## Safe Import Workflow
 
@@ -58,7 +61,7 @@ Always dry-run first:
 aw-importer-apple-screentime import-file exports/screen-time.csv --dry-run
 ```
 
-Inspect parsed count, total seconds, first/last timestamps, and the first preview rows. If the dry-run looks wrong, fix the source mapping or parser before writing ActivityWatch events.
+Inspect parsed count, total seconds, first/last timestamps, and the first preview rows. Treat preview rows as private. If the dry-run looks wrong, fix the source mapping or parser before writing ActivityWatch events.
 
 Import into a clear bucket:
 
@@ -105,6 +108,12 @@ Expected event type is `app`, with event data similar to:
   "event_hash": "..."
 }
 ```
+
+After import, fetch events from the target bucket for the imported date range and verify the count is plausible, timestamps match the dry-run range, durations are positive, and event data includes `app`, `device`, `source=apple_screentime_export`, and `event_hash`.
+
+## Idempotency
+
+The CLI adds `event_hash`, but it does not deduplicate before inserting. Re-running the same overlapping file posts duplicate ActivityWatch events. Use a wrapper or manual verification before re-importing overlapping files.
 
 ## Development Notes
 
